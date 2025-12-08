@@ -1,0 +1,569 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Indicadores - Saúde GO</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+
+</head>
+<body>
+
+    <div class="hero-section">
+        <div class="container">
+            <a href="/" class="btn-back"><i class="bi bi-arrow-left"></i> Voltar para Lista</a>
+            
+            <div class="row align-items-end">
+                <div class="col-lg-9">
+                    <h1 class="dashboard-title" id="indicator-title">
+                        <span class="placeholder-glow"><span class="placeholder col-6"></span></span>
+                    </h1>
+                    <p class="dashboard-meta" id="indicator-description">Carregando detalhes do indicador...</p>
+                </div>
+                <div class="col-lg-3 text-lg-end">
+                     <span class="badge bg-white text-dark mb-2 bg-opacity-75">
+                        <i class="bi bi-database-check"></i> Dados Atualizados
+                     </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <div class="row stats-container g-4">
+            <div class="col-md-3 col-6">
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-total">-</span>
+                    <span class="stat-label">Total de Registros</span>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-card" style="border-bottom-color: #2ecc71;">
+                    <span class="stat-value" id="stat-municipios">-</span>
+                    <span class="stat-label">Municípios</span>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-card" style="border-bottom-color: #f1c40f;">
+                    <span class="stat-value" id="stat-media">-</span>
+                    <span class="stat-label">Média (Valor)</span>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-card" style="border-bottom-color: #9b59b6;">
+                    <span class="stat-value" id="stat-periodo">-</span>
+                    <span class="stat-label">Período</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header-flex">
+                <h3 class="section-title"><i class="bi bi-funnel"></i> Filtros de Dados</h3>
+                <button class="btn btn-sm btn-link text-decoration-none text-secondary" onclick="clearFilters()">Limpar Filtros</button>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="filter-label">Ano</div>
+                    <select class="form-select" id="filter-year" onchange="applyFilters()">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="filter-label">Município</div>
+                    <select class="form-select" id="filter-municipality" onchange="applyFilters()">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="filter-label">Categoria / Região</div>
+                    <select class="form-select" id="filter-category" onchange="applyFilters()">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100 py-2" style="border-radius: 10px; background-color: var(--accent-color); border:none;" onclick="applyFilters()">
+                        <i class="bi bi-search"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="loading-overlay" id="loading">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted fw-bold">Processando visualização...</p>
+            </div>
+
+            <div class="card-header-flex">
+                <h3 class="section-title"><i class="bi bi-bar-chart-line"></i> Visualização</h3>
+                <div class="view-btn-group">
+                    <button class="view-btn active" onclick="switchView('bar', this)"><i class="bi bi-bar-chart-fill"></i> Barras</button>
+                    <button class="view-btn" onclick="switchView('line', this)"><i class="bi bi-graph-up"></i> Linha</button>
+                    <button class="view-btn" onclick="switchView('map', this)"><i class="bi bi-map-fill"></i> Mapa</button>
+                    <button class="view-btn" onclick="switchView('pie', this)"><i class="bi bi-pie-chart-fill"></i> Pizza</button>
+                </div>
+            </div>
+
+            <div id="chart" style="width: 100%; height: 500px;"></div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header-flex">
+                <h3 class="section-title"><i class="bi bi-table"></i> Detalhamento</h3>
+                <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" id="table-search" placeholder="🔍 Buscar na tabela..." onkeyup="searchTable()" style="width: 220px; border-radius: 20px;">
+                    <button class="btn btn-sm btn-success rounded-pill px-3" onclick="exportToCSV()"><i class="bi bi-download"></i> CSV</button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="data-table">
+                    <thead><tr id="table-header"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                <span class="text-muted small" id="pagination-info">Carregando...</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0" id="pagination"></ul>
+                </nav>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+      
+        const API_BASE = '/api';
+        const INDICATOR_ID = window.location.pathname.split('/').filter(Boolean)[1];
+        
+        let chartDom = document.getElementById('chart');
+        let myChart = echarts.init(chartDom);
+        let allData = [];
+        let filteredData = [];
+        let mapGeoJson = null;
+        let currentView = 'bar';
+        let currentPage = 1;
+        const pageSize = 15;
+
+        async function init() {
+            try {
+                showLoading(true);
+                await loadMetadata();
+                loadMapData();
+                await loadChartData();
+                populateFilters(); 
+            } catch (e) {
+                console.error("Erro init:", e);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadMetadata() {
+            try {
+                const res = await fetch(`${API_BASE}/indicators/${INDICATOR_ID}/metadata/`);
+                const meta = await res.json();
+                document.getElementById('indicator-title').innerHTML = meta.title || 'Indicador';
+                let unitText = meta.unit ? ` (Unidade: ${meta.unit})` : '';
+                document.getElementById('indicator-description').innerHTML = (meta.description || '') + unitText;
+            } catch (e) {}
+        }
+
+        async function loadMapData() {
+            try {
+                const res = await fetch(`${API_BASE}/maps/GO_mun/`);
+                if (res.ok) mapGeoJson = await res.json();
+            } catch (e) {}
+        }
+
+        async function loadChartData(params = '') {
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_BASE}/indicators/${INDICATOR_ID}/data/?${params}`);
+                let rawJson = await res.json();
+                
+                if (Array.isArray(rawJson)) {
+                    allData = rawJson;
+                } else if (typeof rawJson === 'object' && rawJson !== null) {
+                    if (rawJson.option_echarts?.series?.[0]?.data) {
+                       
+                        allData = rawJson.option_echarts.series[0].data.map(item => ({
+                            data: {
+                                municipio: item.name, 
+                                valor: item.value,   
+                                ano: (rawJson.applyed_filters?.[0]?.id_option?.[0]) || 'Atual'
+                            }
+                        }));
+                    } else {
+                        allData = []; 
+                    }
+                }
+
+                filteredData = [...allData];
+                if (allData.length === 0) throw new Error("Sem dados");
+
+                updateDashboard();
+            } catch (e) {
+                console.error("Erro dados:", e);
+                document.getElementById('chart').innerHTML = `<p class="text-center text-muted mt-5">Erro ao processar dados.</p>`;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function findKey(obj, candidates) {
+            if (!obj) return null;
+            const keys = Object.keys(obj);
+            const targets = Array.isArray(candidates) ? candidates : [candidates];
+            for (let target of targets) {
+                if (keys.includes(target)) return target;
+                const found = keys.find(k => k.toLowerCase().includes(target.toLowerCase()));
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function getKeys(sampleData) {
+            const valueCandidates = [
+                'valor', 'quantidade', 'total', 'casos', 'value', 
+                'taxa', 'proporcao', 'percentual', 'cobertura',  
+                'indice', 'qtde', 'qtd', 'num', 'numero',         
+                'obitos', 'nascidos', 'partos', 'notificacoes'  
+            ];
+
+            let valKey = findKey(sampleData, valueCandidates);
+
+            if (!valKey) {
+                const keys = Object.keys(sampleData);                
+                const potential = keys.filter(k => !k.includes('_id') && !k.includes('_option_'));
+                if (potential.length > 0) {                    
+                    valKey = potential[potential.length - 1]; 
+                    console.warn("Aviso: Coluna de valor não identificada pelo nome. Usando fallback:", valKey);
+                }
+            }
+
+            return {                
+                mun: findKey(sampleData, ['nome_option_f1', 'nm_municipio', 'mun', 'municipio', 'cidade', 'local']),
+
+                year: findKey(sampleData, ['ano', 'nome_option_f7', 'year', 'data', 'periodo']),
+
+                val: valKey,
+
+                cat: findKey(sampleData, ['nome_option_f2', 'nome_option_f3', 'desc_id', 'categoria', 'sexo', 'faixa'])
+            };
+        }
+
+        function normalizeStr(str) {
+            return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        }
+
+        function updateDashboard() {
+            updateStats();
+            renderChart();
+            renderTable();
+        }
+
+        function updateStats() {
+            document.getElementById('stat-total').innerText = filteredData.length.toLocaleString();
+            if (filteredData.length === 0) return;
+
+            const sample = filteredData[0].data;
+            const k = getKeys(sample);
+
+            if (k.mun) {
+                const unique = new Set(filteredData.map(d => d.data[k.mun]));
+                document.getElementById('stat-municipios').innerText = unique.size;
+            }
+            if (k.val) {
+                const total = filteredData.reduce((acc, curr) => acc + (parseFloat(curr.data[k.val]) || 0), 0);
+                const media = total / filteredData.length;
+                document.getElementById('stat-media').innerText = media.toLocaleString('pt-BR', {maximumFractionDigits: 2});
+            } else {
+                 document.getElementById('stat-media').innerText = "-";
+            }
+            if (k.year) {
+                const years = filteredData.map(d => d.data[k.year]).sort();
+                if (years.length) {
+                    const min = years[0];
+                    const max = years[years.length-1];
+                    document.getElementById('stat-periodo').innerText = min == max ? min : `${min}-${max}`;
+                }
+            }
+        }
+
+        function populateFilters() {
+            if (!allData.length) return;
+            const sample = allData[0].data;
+            const k = getKeys(sample);
+
+            const selYear = document.getElementById('filter-year').value;
+            const selMun = document.getElementById('filter-municipality').value;
+            const selCat = document.getElementById('filter-category').value;
+
+            const getOptionsFor = (targetKey, constraints) => {
+                if (!targetKey) return [];
+                const subset = allData.filter(d => {
+                    let pass = true;
+                    for (const [key, val] of Object.entries(constraints)) {
+                        if (key && val && normalizeStr(d.data[key]) !== normalizeStr(val)) pass = false;
+                    }
+                    return pass;
+                });
+                return [...new Set(subset.map(d => d.data[targetKey]))].filter(v => v != null && v !== "").sort();
+            };
+
+            const validYears = k.year ? getOptionsFor(k.year, { [k.mun]: selMun, [k.cat]: selCat }) : [];
+            updateSelect('filter-year', validYears, selYear);
+
+            const validMuns = k.mun ? getOptionsFor(k.mun, { [k.year]: selYear, [k.cat]: selCat }) : [];
+            updateSelect('filter-municipality', validMuns, selMun);
+
+            const validCats = k.cat ? getOptionsFor(k.cat, { [k.year]: selYear, [k.mun]: selMun }) : [];
+            updateSelect('filter-category', validCats, selCat);
+        }
+
+        function updateSelect(id, options, currentValue) {
+            const sel = document.getElementById(id);
+            sel.innerHTML = '<option value="">Todos</option>';
+            if (options.length > 0) {
+                sel.disabled = false;
+                const strOptions = options.map(String);
+                options.forEach(opt => sel.add(new Option(opt, opt)));
+                
+                if (currentValue && strOptions.includes(String(currentValue))) {
+                    sel.value = currentValue;
+                } else if (options.length === 1) {
+                    sel.value = options[0];
+                } else {
+                    sel.value = "";
+                }
+            } else {
+                sel.innerHTML = '<option value="">N/A</option>';
+                sel.disabled = true;
+            }
+        }
+
+        function applyFilters() {
+            const yearVal = document.getElementById('filter-year').value;
+            const munVal = document.getElementById('filter-municipality').value;
+            const catVal = document.getElementById('filter-category').value;
+            
+            if (allData.length === 0) return;
+            const k = getKeys(allData[0].data);
+            
+            filteredData = allData.filter(d => {
+                let pass = true;
+                if (yearVal && k.year && normalizeStr(d.data[k.year]) !== normalizeStr(yearVal)) pass = false;
+                if (munVal && k.mun && normalizeStr(d.data[k.mun]) !== normalizeStr(munVal)) pass = false;
+                if (catVal && k.cat && normalizeStr(d.data[k.cat]) !== normalizeStr(catVal)) pass = false;
+                return pass;
+            });
+
+            populateFilters();
+            currentPage = 1;
+            updateDashboard();
+        }
+
+        function clearFilters() {
+            document.querySelectorAll('select').forEach(s => s.value = "");
+            filteredData = [...allData];
+            populateFilters(); 
+            updateDashboard();
+        }
+
+        function switchView(view, btn) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderChart();
+        }
+
+        function renderChart() {
+            myChart.clear();
+            if (filteredData.length === 0) {
+                myChart.setOption({ title: { text: 'Sem dados para exibir', left: 'center', top: 'center', textStyle: { color: '#999' } } });
+                return;
+            }
+
+            const sample = filteredData[0].data;
+            const k = getKeys(sample);
+
+            console.log("Keys detectadas:", k);
+
+            const yKey = k.val;
+            
+            let xKey = k.year;
+            if (!xKey) xKey = k.mun;
+            else if (document.getElementById('filter-year').value) xKey = k.mun;
+            else if (k.year) {
+                const uniqueYears = new Set(filteredData.map(d => d.data[k.year])).size;
+                if (uniqueYears <= 1) xKey = k.mun;
+            }
+
+            const chartData = currentView === 'map' ? filteredData : filteredData.slice(0, 50);
+
+            let option = {
+                tooltip: { trigger: 'axis' },
+                grid: { bottom: 80, top: 50, right: 30, left: 60 },
+                dataZoom: [{ type: 'inside' }, { type: 'slider' }]
+            };
+
+            if (currentView === 'bar' || currentView === 'line') {
+                if (!yKey) {
+                    console.error("FALHA: Eixo Y (Valor) não encontrado.");
+                    myChart.setOption({ title: { text: 'Erro: Coluna de Valor não encontrada', left: 'center' }});
+                    return;
+                }
+                if (!xKey) {
+                    console.warn("Aviso: Eixo X indefinido, usando índice.");
+                    xKey = 'index'; 
+                }
+
+                option.xAxis = { 
+                    type: 'category', 
+                    data: xKey === 'index' ? chartData.map((_, i) => i+1) : chartData.map(d => d.data[xKey]),
+                    axisLabel: { rotate: 45, interval: 'auto' },
+                    name: xKey === k.year ? 'Ano' : 'Município',
+                    nameLocation: 'middle', nameGap: 50
+                };
+                option.yAxis = { type: 'value', name: 'Valor' };
+                option.series = [{
+                    type: currentView,
+                    data: chartData.map(d => parseFloat(d.data[yKey]) || 0),
+                    itemStyle: { color: currentView === 'bar' ? '#3498db' : '#2ecc71' },
+                    smooth: true,
+                    areaStyle: currentView === 'line' ? { opacity: 0.2 } : null,
+                    label: { show: chartData.length < 15, position: 'top' }
+                }];
+
+            } else if (currentView === 'pie') {
+                const groupKey = k.cat || k.mun || xKey;
+                const agg = {};
+                filteredData.forEach(d => {
+                    const label = d.data[groupKey] || 'Outros';
+                    const val = parseFloat(d.data[yKey]) || 0;
+                    agg[label] = (agg[label] || 0) + val;
+                });
+                const pieData = Object.keys(agg).map(key => ({name: key, value: agg[key]})).sort((a,b) => b.value - a.value).slice(0, 10);
+                
+                option.tooltip = { trigger: 'item' };
+                option.series = [{
+                    type: 'pie', radius: ['40%', '70%'], data: pieData,
+                    itemStyle: { borderRadius: 5, borderColor: '#fff', borderWidth: 2 }
+                }];
+
+            } else if (currentView === 'map') {
+                if (!mapGeoJson) { alert("Mapa não carregado"); return; }
+                if (!k.mun) { alert("Falta coluna de Município"); return; }
+                echarts.registerMap('GO', mapGeoJson);
+                
+                const mapData = filteredData.map(d => ({
+                    name: d.data[k.mun], 
+                    value: parseFloat(d.data[yKey]) || 0
+                }));
+
+                option.visualMap = {
+                    left: 'right', min: 0, 
+                    max: Math.max(...mapData.map(d => d.value || 0)) || 100,
+                    inRange: { color: ['#e0f3f8', '#4575b4'] },
+                    text: ['Alto', 'Baixo'], calculable: true
+                };
+                option.series = [{
+                    type: 'map', map: 'GO', roam: true, data: mapData,
+                    emphasis: { itemStyle: { areaColor: '#f1c40f' }, label: { show: true } }
+                }];
+            }
+            myChart.setOption(option);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            const thead = document.getElementById('table-header');
+            tbody.innerHTML = ''; thead.innerHTML = '';
+
+            if(!filteredData.length) {
+                tbody.innerHTML = '<tr><td colspan="100%" class="text-center text-muted p-4">Sem dados encontrados.</td></tr>';
+                return;
+            }
+
+            const keys = Object.keys(filteredData[0].data);
+            keys.forEach(k => thead.innerHTML += `<th>${k}</th>`);
+
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            
+            filteredData.slice(start, end).forEach(row => {
+                let tr = '<tr>';
+                keys.forEach(k => tr += `<td>${row.data[k] !== null ? row.data[k] : '-'}</td>`);
+                tr += '</tr>';
+                tbody.innerHTML += tr;
+            });
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const total = Math.ceil(filteredData.length / pageSize);
+            const ul = document.getElementById('pagination');
+            const info = document.getElementById('pagination-info');
+            ul.innerHTML = '';
+            info.innerText = `Página ${currentPage} de ${total} (${filteredData.length} registros)`;
+
+            const createLi = (page, text, active=false, disabled=false) => {
+                return `<li class="page-item ${active?'active':''} ${disabled?'disabled':''}"><button class="page-link" onclick="changePage(${page})">${text}</button></li>`;
+            };
+
+            ul.innerHTML += createLi(currentPage-1, '<i class="bi bi-chevron-left"></i>', false, currentPage===1);
+            if(total > 0) {
+                 ul.innerHTML += createLi(1, 1, currentPage===1);
+                 if(currentPage > 3) ul.innerHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                 if(currentPage > 1 && currentPage < total) ul.innerHTML += createLi(currentPage, currentPage, true);
+                 if(currentPage < total - 2) ul.innerHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                 if(total > 1) ul.innerHTML += createLi(total, total, currentPage===total);
+            }
+            ul.innerHTML += createLi(currentPage+1, '<i class="bi bi-chevron-right"></i>', false, currentPage===total);
+        }
+
+        function changePage(p) {
+            if(p < 1 || p > Math.ceil(filteredData.length / pageSize)) return;
+            currentPage = p;
+            renderTable();
+        }
+
+        function searchTable() {
+            const term = document.getElementById('table-search').value.toLowerCase();
+            filteredData = allData.filter(d => Object.values(d.data).some(v => String(v).toLowerCase().includes(term)));
+            currentPage = 1;
+            renderTable();
+        }
+
+        function exportToCSV() {
+            if(!filteredData.length) return;
+            const keys = Object.keys(filteredData[0].data);
+            let csv = keys.join(",") + "\n";
+            filteredData.forEach(r => csv += keys.map(k => r.data[k]).join(",") + "\n");
+            const link = document.createElement("a");
+            link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+            link.download = `dados_${INDICATOR_ID}.csv`;
+            link.click();
+        }
+
+        function showLoading(show) {
+            const el = document.getElementById('loading');
+            show ? el.classList.add('active') : el.classList.remove('active');
+        }
+
+        window.addEventListener('resize', () => myChart.resize());
+        init();
+    </script>
+</body>
+</html>

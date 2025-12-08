@@ -1,0 +1,57 @@
+services:
+  # --- Banco de Dados (PostgreSQL) ---
+  db:
+    image: postgres:15-alpine
+    container_name: saude_go_db
+    environment:
+      - POSTGRES_DB=saudedb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - saude_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Serviço 1: API (Backend & Dados) ---
+  api:
+    build: ./api_service
+    container_name: saude_go_api
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./api_service:/app
+      - ./data:/app/data_source
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/saudedb
+    networks:
+      - saude_network
+
+  # --- Serviço 2: Dashboard (Frontend Django) ---
+  dashboard:
+    build: ./dashboard_service
+    container_name: saude_go_dashboard
+    command: python manage.py runserver 0.0.0.0:8001
+    volumes:
+      - ./dashboard_service:/app
+    ports:
+      - "8001:8001"
+    environment:
+      - API_URL=http://api:8000/api
+    networks:
+      - saude_network
+
+volumes:
+  postgres_data:
+
+networks:
+  saude_network:
+    driver: bridge
