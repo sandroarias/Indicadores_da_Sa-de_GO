@@ -498,15 +498,12 @@
         ];
 
         function getFriendlyName(key) {
-            // 1. Tenta pegar do mapa
             if (COLUMN_MAP[key]) return COLUMN_MAP[key];
-            
-            // 2. Se não tiver no mapa, formata o texto (ex: 'data_nasc' -> 'Data Nasc')
+
             return key.replace(/_/g, ' ')
-                      .replace(/\b\w/g, l => l.toUpperCase()); // Primeira letra maiúscula
+                      .replace(/\b\w/g, l => l.toUpperCase());
         }
 
-        // --- TABELA ---
         function renderTable() {
             const tbody = document.getElementById('table-body');
             const thead = document.getElementById('table-header');
@@ -517,52 +514,43 @@
                 return;
             }
 
-            // Pega todas as chaves disponíveis
             const allKeys = Object.keys(filteredData[0].data);
-            
-            // Filtra as chaves que queremos mostrar (Remove as HIDDEN_COLS)
-            // Também removemos colunas que tenham '_id' no final se não estiverem no mapa explícito
+
             const displayKeys = allKeys.filter(k => {
                 if (HIDDEN_COLS.includes(k)) return false;
-                // Opcional: Esconder automaticamente colunas que terminam em _id se não estiverem traduzidas
+
                 if (k.endsWith('_id') && !COLUMN_MAP[k]) return false;
                 return true;
             });
 
-            // Ordena colunas para prioridade: Ano > Município > Valor > Resto
             displayKeys.sort((a, b) => {
                 const priority = ['ano', 'nome_option_f7', 'nome_option_f1', 'municipio', 'quantidade', 'valor'];
                 const idxA = priority.indexOf(a);
                 const idxB = priority.indexOf(b);
-                // Se ambos estão na lista de prioridade, ordena por ela. Senão, mantém ordem original.
+
                 if (idxA !== -1 && idxB !== -1) return idxA - idxB;
                 if (idxA !== -1) return -1;
                 if (idxB !== -1) return 1;
                 return 0;
             });
 
-            // Renderiza Cabeçalho
             displayKeys.forEach(k => {
                 thead.innerHTML += `<th>${getFriendlyName(k)}</th>`;
             });
 
             const start = (currentPage - 1) * pageSize;
             const end = start + pageSize;
-            
-            // Renderiza Linhas
+
             filteredData.slice(start, end).forEach(row => {
                 let tr = '<tr>';
                 displayKeys.forEach(k => {
                     let val = row.data[k];
-                    
-                    // Formatação Inteligente de Valores
+
                     if (val === null || val === undefined) val = '-';
                     else if (typeof val === 'number') {
-                        // Se parece ano ou código IBGE, não formata como moeda
                         if (k.includes('ano') || k.includes('mun') || k.includes('id')) {
                             val = val; 
                         } 
-                        // Se é valor decimal grande, formata
                         else if (val % 1 !== 0) {
                             val = val.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }

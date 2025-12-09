@@ -16,7 +16,44 @@ O projeto consiste em uma plataforma de análise de dados de saúde pública, ut
 
 ## 🏗️ Arquitetura da Solução
 
-A solução foi desacoplada em dois serviços containerizados:
+A solução foi desacoplada em dois serviços containerizados principais. Abaixo, o diagrama de fluxo de dados:
+
+```mermaid
+graph TD
+    User((Usuário Final))
+    Files[Pasta /data<br/>CSV, JSON, GeoJSON]
+
+    subgraph "Docker Host (On-Premise)"
+        
+        subgraph "Dashboard Service (:8001)"
+            Dash[Django View]
+            Proxy[Proxy Reverso]
+            Chart[Apache ECharts]
+        end
+        
+        subgraph "API Service (:8000)"
+            API[Django REST Framework]
+            ETL[Script de Ingestão]
+        end
+        
+        subgraph "Persistência"
+            DB[(PostgreSQL 15)]
+        end
+    end
+
+    %% Fluxo de Ingestão
+    Files -->|Leitura em Batch| ETL
+    ETL -->|Normalização & Carga| DB
+    
+    %% Fluxo de Uso
+    User -->|Acessa HTTP| Dash
+    Dash -->|Requisita JSON| API
+    API -->|Consulta SQL Otimizada| DB
+    DB -->|Retorna JSONB| API
+    API -.->|Response| Dash
+    Dash -->|Renderiza| Chart
+
+
 
 1.  **API Service (Porta 8000):**
     * Responsável pela regra de negócios e ingestão de dados (ETL).
