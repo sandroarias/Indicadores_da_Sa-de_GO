@@ -51,7 +51,8 @@ graph TD
     API -->|Consulta SQL Otimizada| DB
     DB -->|Retorna JSONB| API
     API -.->|Response| Dash
-    Dash -->|Renderiza| Chart
+    Dash -->|Renderiza| Chart 
+```
 
 
 
